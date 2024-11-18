@@ -8,6 +8,7 @@ import com.hazelcast.core.Hazelcast;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.enterprise.jet.cdc.Operation;
 import com.hazelcast.enterprise.jet.cdc.mysql.MySqlCdcSources;
+import com.hazelcast.jet.kafka.KafkaSinks;
 import com.hazelcast.jet.pipeline.Pipeline;
 import com.hazelcast.jet.pipeline.Sinks;
 import com.hazelcast.spi.properties.ClusterProperty;
@@ -16,6 +17,8 @@ import com.hazelcast.vector.SearchResults;
 import com.hazelcast.vector.VectorCollection;
 import com.hazelcast.vector.VectorDocument;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.kafka.common.serialization.LongSerializer;
+import org.apache.kafka.common.serialization.StringSerializer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -26,6 +29,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.Duration;
 import java.util.List;
+import java.util.Properties;
 
 import static com.hazelcast.jet.datamodel.Tuple2.tuple2;
 import static com.hazelcast.vector.jet.VectorTransforms.mapUsingVectorSearch;
@@ -85,23 +89,30 @@ public class Main {
 
             insertTrainingData(processedPayments);
 
+            // Properties for Kafka sink
+            Properties props = new Properties();
+            props.setProperty("bootstrap.servers", "localhost:9092");
+            props.setProperty("key.serializer", LongSerializer.class.getCanonicalName());
+            props.setProperty("value.serializer", StringSerializer.class.getCanonicalName());
+
             Pipeline pipeline = Pipeline.create();
             var source = MySqlCdcSources.mysql("payments")
                                         .setDatabaseAddress(container.getHost(), container.getMappedPort(MySQLContainer.MYSQL_PORT))
                                         .setDatabaseCredentials("debezium", "dbz")
                                         .setTableIncludeList("inventory.payments")
                                         .build();
-            var classifiedPayments = pipeline.readFrom(source)
+            var payments = pipeline.readFrom(source)
                                              .withIngestionTimestamps()
                                              .filter(changeRecord -> changeRecord.operation() != Operation.UNSPECIFIED)
-                                             .map(changeRecord -> changeRecord.nonNullValue().toObject(Payment.class))
-                                             .apply(mapUsingVectorSearch("processedPayments", SearchOptions.of(10, true, true),
-                                                     Payment::toVector,
-                                                     Main::classify));
-            classifiedPayments.writeTo(Sinks.logger());
-            classifiedPayments
-                    .map(procPay -> tuple2(procPay.payment.paymentId(), procPay))
-                    .writeTo(Sinks.map("results"));
+                                             .map(changeRecord -> changeRecord.nonNullValue().toObject(Payment.class));
+//                                             .apply(mapUsingVectorSearch("processedPayments", SearchOptions.of(10, true, true),
+//                                                     Payment::toVector,
+//                                                     Main::classify));
+            payments.writeTo(Sinks.logger());
+            payments
+                    .map(payment -> tuple2(payment.paymentId(), payment.toString()))
+                    //.writeTo(Sinks.map("results"));
+                    .writeTo(KafkaSinks.kafka(props,"payments"));
 
             hz.getJet().newJob(pipeline);
 
