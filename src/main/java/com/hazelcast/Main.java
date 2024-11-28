@@ -110,7 +110,7 @@ public class Main {
 //                                                     Main::classify));
             payments.writeTo(Sinks.logger());
             payments
-                    .map(payment -> tuple2(payment.paymentId(), payment.toString()))
+                    .map(payment -> tuple2(payment.getPaymentId(), payment.toString()))
                     //.writeTo(Sinks.map("results"));
                     .writeTo(KafkaSinks.kafka(props,"payments"));
 
@@ -139,10 +139,10 @@ public class Main {
                 VALUES (?, ?, ?, ?);
                 """
              )) {
-            stmt.setLong(1, payment.paymentId());
-            stmt.setString(2, payment.sourceAccountNo());
-            stmt.setString(3, payment.targetAccountNo());
-            stmt.setString(4, payment.title());
+            stmt.setLong(1, payment.getPaymentId());
+            stmt.setString(2, payment.getSourceAccountNo());
+            stmt.setString(3, payment.getTargetAccountNo());
+            stmt.setString(4, payment.getTitle());
             stmt.execute();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -166,11 +166,11 @@ public class Main {
                 new Payment("54867324894123", "00011458974813", "my tribute")
         );
         for (Payment payment : sus) {
-            processedPayments.putAsync(payment.paymentId(), VectorDocument.of(new ProcessedPayment(Classifier.SUSPICIOUS, payment),
+            processedPayments.putAsync(payment.getPaymentId(), VectorDocument.of(new ProcessedPayment(Classifier.SUSPICIOUS, payment),
                     payment.toVector()));
         }
         for (Payment payment : legit) {
-            processedPayments.putAsync(payment.paymentId(), VectorDocument.of(new ProcessedPayment(Classifier.LEGIT, payment),
+            processedPayments.putAsync(payment.getPaymentId(), VectorDocument.of(new ProcessedPayment(Classifier.LEGIT, payment),
                     payment.toVector()));
         }
     }
