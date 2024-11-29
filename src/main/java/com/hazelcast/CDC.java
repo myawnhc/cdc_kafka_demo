@@ -158,6 +158,7 @@ public class CDC {
                 .window(WindowDefinition.session(TimeUnit.MILLISECONDS.toMillis(100)))
                 .distinct().setName("Pick any one for the key")
                 .mapUsingService(jdbcServiceFactory, (conn, record)->{
+                    //FIXME make it async and batched maybe
                     try (PreparedStatement stmt = conn.prepareStatement("SELECT * FROM inventory.payments WHERE mandt = ? AND lgnum = ? AND lqnum = ?")) {
                         Map<String, Object> map = record.key().toMap();
                         stmt.setLong(1, (Integer) map.get("mandt"));
@@ -233,7 +234,7 @@ public class CDC {
     /*
      * Create a Hazelcast instance and configure it
      */
-    private static HazelcastInstance getHz(MySQLContainer<?> mySqlContainer) throws IOException {
+    static HazelcastInstance getHz(MySQLContainer<?> mySqlContainer) throws IOException {
         Config config = Config.load();
         config.getJetConfig().setEnabled(true);
         config.setProperty(ClusterProperty.PARTITION_COUNT.getName(), "7");
@@ -300,7 +301,7 @@ public class CDC {
         hzConfig.addMapConfig(lqnumMapConfig);
     }
 
-    private static void insertPayment(MySQLContainer<?> container, Payment payment) {
+    static void insertPayment(MySQLContainer<?> container, Payment payment) {
         RandomUtils randomUtils = RandomUtils.insecure();
         try (Connection conn = DriverManager.getConnection(container.getJdbcUrl(), container.getUsername(),
                 container.getPassword());
@@ -331,7 +332,7 @@ public class CDC {
      * creates the three tables and inserts UPPER_LIMIT records into each master
      * table.
      */
-    private static void createTablesAndMasterData(MySQLContainer<?> container) {
+    static void createTablesAndMasterData(MySQLContainer<?> container) {
         // create payments table
         try (Connection conn = DriverManager.getConnection(container.getJdbcUrl(), container.getUsername(),
                 container.getPassword());
