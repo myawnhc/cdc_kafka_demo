@@ -18,10 +18,11 @@ public class Payment implements Serializable {
     private final String sourceAccountNo;
     private final String targetAccountNo;
     private final String title;
-    private long mandt;
+    private int mandt;
     private String mandtname;
-    private long lgnum;
-    private long lqnum;
+    private int lgnum;
+    private int lqnum;
+    private boolean deleted = false;
 
     public Payment(){
         this.paymentId = 0;
@@ -40,11 +41,34 @@ public class Payment implements Serializable {
         this.targetAccountNo = targetAccountNo;
         this.title = title;
     }
+    public Payment(long paymentId, String sourceAccountNo, String targetAccountNo, String title, int mandt, int lgnum, int lqnum) {
+        this.paymentId = paymentId;
+        this.sourceAccountNo = sourceAccountNo;
+        this.targetAccountNo = targetAccountNo;
+        this.title = title;
+        this.mandt = mandt;
+        this.lgnum = lgnum;
+        this.lqnum = lqnum;
+    }
 
     public Payment(String sourceAccountNo, String targetAccountNo, String title) {
         this(ID.incrementAndGet(), sourceAccountNo, targetAccountNo, title);
     }
+    public Payment(int mandt, int lgnum, int lqnum) {
+        this.mandt = mandt;
+        this.lgnum = lgnum;
+        this.lqnum = lqnum;
+        this.paymentId = 0;
+        this.sourceAccountNo = "";
+        this.targetAccountNo = "";
+        this.title = "";
+        deleted = true;
+    }
 
+    public boolean isDeleted() {
+        return deleted;
+    }
+    
     public VectorValues toVector() {
         return VectorValues.of(embeddingModel.embed(this.toString()).content().vector());
     }
@@ -88,26 +112,26 @@ public class Payment implements Serializable {
     public String getTitle() {
         return title;
     }
-    public long getMandt() {
+    public int getMandt() {
         return mandt;
     }
 
-    public void setMandt(long mandt) {
+    public void setMandt(int mandt) {
         this.mandt = mandt;
     }
-    public long getLgnum() {
+    public int getLgnum() {
         return lgnum;
     }
 
-    public void setLgnum(long lgnum) {
+    public void setLgnum(int lgnum) {
         this.lgnum = lgnum;
     }
 
-    public long getLqnum() {
+    public int getLqnum() {
         return lqnum;
     }
 
-    public void setLqnum(long lqnum) {
+    public void setLqnum(int lqnum) {
         this.lqnum = lqnum;
     }
     public String getMandtname() {
